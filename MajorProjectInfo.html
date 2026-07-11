@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gateway — Self-Defending Confidential Multimodal LLM Gateway</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0F1115;
+    --bg-2:#12151B;
+    --panel:#171A21;
+    --panel-2:#1D212A;
+    --border:#272C36;
+    --border-soft:#20242D;
+    --text:#E7E9ED;
+    --text-dim:#8B93A3;
+    --text-faint:#575F6E;
+    --amber:#E8A33D;
+    --green:#4FD1A5;
+    --red:#E2574C;
+    --mono:'IBM Plex Mono', monospace;
+    --sans:'IBM Plex Sans', sans-serif;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html{scroll-behavior:smooth;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:var(--sans);
+    line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+  }
+  ::selection{background:var(--amber); color:#0F1115;}
+  a{color:inherit;}
+  .wrap{max-width:1080px; margin:0 auto; padding:0 28px;}
+  .eyebrow{
+    font-family:var(--mono);
+    font-size:12px;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+    color:var(--text-faint);
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+  .eyebrow::before{
+    content:"";
+    width:7px; height:7px;
+    background:var(--green);
+    border-radius:50%;
+    box-shadow:0 0 8px var(--green);
+    flex-shrink:0;
+  }
+  h1,h2,h3{font-family:var(--sans); font-weight:700; letter-spacing:-0.01em;}
+  code, .mono{font-family:var(--mono);}
+
+  /* ---------- Redaction signature element ---------- */
+  .redact{
+    display:inline-block;
+    background:#0B0C0F;
+    color:transparent;
+    border-radius:2px;
+    position:relative;
+    cursor:default;
+    user-select:none;
+    transition:color .25s ease, background .25s ease;
+  }
+  .redact::selection{color:transparent;}
+  .redact:hover{
+    background:var(--panel-2);
+    color:var(--amber);
+    box-shadow: inset 0 0 0 1px var(--border);
+  }
+
+  /* ---------- Nav ---------- */
+  header.nav{
+    position:sticky; top:0; z-index:50;
+    background:rgba(15,17,21,.86);
+    backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--border-soft);
+  }
+  .nav-inner{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:16px 28px;
+    max-width:1080px; margin:0 auto;
+  }
+  .brand{
+    font-family:var(--mono); font-weight:600; font-size:14px;
+    display:flex; align-items:center; gap:10px;
+    letter-spacing:.02em;
+  }
+  .brand .dot{width:8px;height:8px;background:var(--green);border-radius:50%;box-shadow:0 0 8px var(--green);}
+  nav.links{display:flex; gap:26px; font-size:13px; font-family:var(--mono);}
+  nav.links a{color:var(--text-dim); text-decoration:none; transition:color .2s;}
+  nav.links a:hover{color:var(--amber);}
+  @media (max-width:720px){ nav.links{display:none;} }
+
+  /* ---------- Hero ---------- */
+  .hero{
+    padding:96px 0 72px;
+    position:relative;
+    overflow:hidden;
+    border-bottom:1px solid var(--border-soft);
+  }
+  .hero::before{
+    content:"";
+    position:absolute; inset:0;
+    background-image:
+      linear-gradient(var(--border-soft) 1px, transparent 1px),
+      linear-gradient(90deg, var(--border-soft) 1px, transparent 1px);
+    background-size:42px 42px;
+    mask-image:radial-gradient(ellipse 900px 500px at 20% 0%, black, transparent 70%);
+    opacity:.5;
+    pointer-events:none;
+  }
+  .hero-grid{
+    position:relative; z-index:1;
+    display:grid; grid-template-columns:1.15fr .85fr; gap:56px; align-items:start;
+  }
+  @media (max-width:860px){ .hero-grid{grid-template-columns:1fr;} }
+  .hero h1{
+    font-size:clamp(32px, 4.6vw, 52px);
+    line-height:1.08;
+    margin:20px 0 22px;
+  }
+  .hero h1 .accent{color:var(--amber);}
+  .hero p.lead{
+    font-size:16.5px;
+    color:var(--text-dim);
+    max-width:52ch;
+    margin-bottom:28px;
+  }
+  .hero-tags{display:flex; flex-wrap:wrap; gap:8px; margin-top:8px;}
+  .tag{
+    font-family:var(--mono); font-size:11.5px;
+    color:var(--text-dim);
+    border:1px solid var(--border);
+    padding:5px 10px;
+    border-radius:4px;
+    background:var(--panel);
+  }
+
+  /* Terminal / log panel */
+  .terminal{
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:8px;
+    overflow:hidden;
+    font-family:var(--mono);
+    font-size:12.5px;
+  }
+  .terminal-head{
+    display:flex; align-items:center; gap:8px;
+    padding:10px 14px;
+    border-bottom:1px solid var(--border);
+    background:var(--panel-2);
+  }
+  .terminal-head span{width:9px;height:9px;border-radius:50%;background:var(--border);}
+  .terminal-head .title{
+    margin-left:6px; color:var(--text-faint); font-size:11px; letter-spacing:.05em;
+  }
+  .terminal-body{padding:14px 16px; height:238px; overflow:hidden; position:relative;}
+  .log-line{
+    display:flex; gap:10px; padding:3px 0; opacity:0; animation:logIn .4s ease forwards;
+    white-space:nowrap;
+  }
+  .log-line .status{width:74px; flex-shrink:0; font-weight:600;}
+  .log-line.pass .status{color:var(--green);}
+  .log-line.block .status{color:var(--red);}
+  .log-line.redact .status{color:var(--amber);}
+  .log-line .msg{color:var(--text-dim); overflow:hidden; text-overflow:ellipsis;}
+  @keyframes logIn{ to{opacity:1;} }
+
+  /* ---------- Sections ---------- */
+  section{padding:78px 0; border-bottom:1px solid var(--border-soft);}
+  .section-head{margin-bottom:36px;}
+  .section-head h2{font-size:clamp(24px,3vw,32px); margin-top:14px;}
+  .section-head p{color:var(--text-dim); max-width:62ch; margin-top:12px; font-size:15px;}
+
+  /* Problem section */
+  .problem-grid{display:grid; grid-template-columns:1fr 1fr; gap:40px;}
+  @media (max-width:760px){ .problem-grid{grid-template-columns:1fr;} }
+  .problem-grid p{color:var(--text-dim); font-size:15px;}
+  .problem-grid p + p{margin-top:14px;}
+  .problem-grid strong{color:var(--text); font-weight:600;}
+
+  /* ---------- Pipeline / architecture ---------- */
+  .pipeline{
+    display:flex; flex-direction:column; align-items:center;
+    font-family:var(--mono);
+  }
+  .pnode{
+    width:100%; max-width:480px;
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:8px;
+    padding:16px 18px;
+    text-align:center;
+    position:relative;
+  }
+  .pnode .label{font-size:13.5px; font-weight:600; color:var(--text);}
+  .pnode .sub{font-size:11.5px; color:var(--text-faint); margin-top:4px;}
+  .pnode.security{border-color:#3a2a20; background:linear-gradient(180deg,var(--panel),#1c1712);}
+  .pnode.security .label{color:var(--amber);}
+  .pnode.privacy{border-color:#20303a;}
+  .pnode.privacy .label{color:#5FB6D6;}
+  .pnode.policy{border-color:var(--border);}
+  .pnode.validator{border-color:#203a2c;}
+  .pnode.validator .label{color:var(--green);}
+  .connector{
+    width:1px; height:30px;
+    background:linear-gradient(var(--border), var(--border-faint,var(--border)));
+    background:repeating-linear-gradient(var(--border) 0 4px, transparent 4px 8px);
+  }
+  .branch-wrap{display:flex; flex-direction:column; align-items:center; width:100%;}
+  .branch-row{
+    display:flex; gap:16px; width:100%; max-width:560px; justify-content:center;
+    margin:0 0 0 0;
+  }
+  .branch-connectors{
+    display:flex; justify-content:center; align-items:flex-end; width:100%; max-width:560px; height:26px;
+    position:relative;
+  }
+  .branch-connectors svg{width:100%; height:100%;}
+  .bnode{
+    flex:1;
+    background:var(--panel-2);
+    border:1px solid var(--border);
+    border-radius:6px;
+    padding:10px 8px;
+    text-align:center;
+    font-size:12px;
+    color:var(--text-dim);
+  }
+  @media (max-width:600px){ .branch-row{flex-direction:column; max-width:280px;} }
+
+  .privacy-demo{
+    margin-top:10px; padding-top:12px; border-top:1px dashed var(--border);
+    font-size:12px; text-align:left; color:var(--text-faint);
+  }
+  .privacy-demo .line{margin-top:6px;}
+
+  /* ---------- Method cards ---------- */
+  .methods{display:grid; grid-template-columns:repeat(4,1fr); gap:16px;}
+  @media (max-width:900px){ .methods{grid-template-columns:1fr 1fr;} }
+  @media (max-width:560px){ .methods{grid-template-columns:1fr;} }
+  .method-card{
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:22px 20px;
+    position:relative;
+    overflow:hidden;
+  }
+  .method-card .stamp{
+    position:absolute; top:14px; right:-26px;
+    font-family:var(--mono); font-size:10px; font-weight:700; letter-spacing:.12em;
+    padding:3px 30px;
+    transform:rotate(28deg);
+    border:1.5px solid currentColor;
+    text-transform:uppercase;
+  }
+  .method-card:nth-child(1) .stamp{color:var(--amber);}
+  .method-card:nth-child(2) .stamp{color:#5FB6D6;}
+  .method-card:nth-child(3) .stamp{color:var(--text-dim);}
+  .method-card:nth-child(4) .stamp{color:var(--green);}
+  .method-card .num{font-family:var(--mono); font-size:11px; color:var(--text-faint);}
+  .method-card h3{font-size:15.5px; margin:10px 0 8px;}
+  .method-card p{font-size:13.5px; color:var(--text-dim);}
+
+  /* ---------- Stack table ---------- */
+  table.stack{width:100%; border-collapse:collapse; font-size:14px;}
+  table.stack th{
+    text-align:left; font-family:var(--mono); font-size:11px; letter-spacing:.08em;
+    text-transform:uppercase; color:var(--text-faint);
+    padding:10px 14px; border-bottom:1px solid var(--border);
+  }
+  table.stack td{
+    padding:12px 14px; border-bottom:1px solid var(--border-soft);
+    color:var(--text-dim);
+  }
+  table.stack tr td:first-child{color:var(--text); font-weight:500;}
+  table.stack tr:hover td{background:var(--panel);}
+
+  /* ---------- Models grid ---------- */
+  .models{display:grid; grid-template-columns:repeat(3,1fr); gap:14px;}
+  @media (max-width:760px){ .models{grid-template-columns:1fr 1fr;} }
+  @media (max-width:480px){ .models{grid-template-columns:1fr;} }
+  .model-card{
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:8px;
+    padding:16px;
+  }
+  .model-card .tag-role{
+    font-family:var(--mono); font-size:10px; color:var(--amber);
+    text-transform:uppercase; letter-spacing:.08em;
+  }
+  .model-card h4{font-size:14px; margin:8px 0 6px;}
+  .model-card p{font-size:12.5px; color:var(--text-dim);}
+
+  /* ---------- References ---------- */
+  .refs{list-style:none;}
+  .refs li{
+    padding:14px 0; border-bottom:1px solid var(--border-soft);
+    display:flex; gap:14px; font-size:14px; color:var(--text-dim);
+  }
+  .refs li:last-child{border-bottom:none;}
+  .refs .idx{font-family:var(--mono); color:var(--text-faint); flex-shrink:0;}
+
+  /* ---------- Timeline strip ---------- */
+  .timeline-strip{
+    display:flex; align-items:center; gap:16px;
+    font-family:var(--mono); font-size:13px; color:var(--text-dim);
+  }
+  .timeline-strip .big{font-size:34px; font-weight:700; color:var(--text); font-family:var(--sans);}
+
+  footer{padding:40px 0; text-align:center;}
+  footer p{font-family:var(--mono); font-size:12px; color:var(--text-faint);}
+
+  .reveal{opacity:0; transform:translateY(14px); transition:opacity .6s ease, transform .6s ease;}
+  .reveal.in{opacity:1; transform:translateY(0);}
+
+  @media (prefers-reduced-motion: reduce){
+    *{animation-duration:.001ms !important; transition-duration:.001ms !important;}
+  }
+</style>
+</head>
+<body>
+
+<header class="nav">
+  <div class="nav-inner">
+    <div class="brand"><span class="dot"></span>GATEWAY // multimodal-llm-defense</div>
+    <nav class="links">
+      <a href="#architecture">Architecture</a>
+      <a href="#methods">Defenses</a>
+      <a href="#stack">Stack</a>
+      <a href="#models">Models</a>
+      <a href="#references">References</a>
+    </nav>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="wrap hero-grid">
+    <div>
+      <div class="eyebrow">System status — armed</div>
+      <h1>Nothing reaches the model <span class="accent">unredacted.</span></h1>
+      <p class="lead">A self-defending gateway that sits between users and an untrusted multimodal LLM stack — screening text, voice, and images for injection, leakage, and unsafe output before a single token is generated.</p>
+      <div class="hero-tags">
+        <span class="tag">prompt injection defense</span>
+        <span class="tag">PII redaction</span>
+        <span class="tag">multi-agent orchestration</span>
+        <span class="tag">multimodal safety</span>
+      </div>
+    </div>
+
+    <div class="terminal">
+      <div class="terminal-head">
+        <span style="background:#E2574C"></span><span style="background:#E8A33D"></span><span style="background:#4FD1A5"></span>
+        <span class="title">gateway.log</span>
+      </div>
+      <div class="terminal-body" id="logBody"></div>
+    </div>
+  </div>
+</section>
+
+<section id="problem">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <div class="eyebrow">Problem</div>
+      <h2>The model got safer. The stack around it didn't.</h2>
+    </div>
+    <div class="problem-grid reveal">
+      <p>Prompt injection is now a well-documented failure mode: adversarial input convinces a model to ignore its instructions, leak secrets, or produce something it shouldn't. <strong>The vulnerability rarely lives in the model weights — it lives in everything wired up around them.</strong></p>
+      <p>Enterprises don't just send text anymore. Voice recordings and uploaded images carry the same risks — and a few new ones. <strong>A gateway built for one modality doesn't protect the other two.</strong></p>
+    </div>
+  </div>
+</section>
+
+<section id="architecture">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <div class="eyebrow">Architecture</div>
+      <h2>Every request passes through five checkpoints</h2>
+      <p>Text, transcribed voice, and image inputs all follow the same path — screened, redacted, authorized, routed, and validated before a response ever reaches the user.</p>
+    </div>
+
+    <div class="pipeline reveal">
+      <div class="pnode"><div class="label">User</div><div class="sub">text · voice · image</div></div>
+      <div class="connector"></div>
+      <div class="pnode"><div class="label">FastAPI Gateway</div><div class="sub">single entry point, all modalities</div></div>
+      <div class="connector"></div>
+
+      <div class="pnode security">
+        <div class="label">Security Agent</div>
+        <div class="sub">prompt injection · jailbreak detection</div>
+      </div>
+      <div class="connector"></div>
+
+      <div class="pnode privacy">
+        <div class="label">Privacy Agent</div>
+        <div class="sub">masks Aadhaar, PAN, passwords, confidential fields</div>
+        <div class="privacy-demo">
+          <div class="line">Aadhaar: <span class="redact">1234 5678 9012</span></div>
+          <div class="line">PAN: <span class="redact">ABCDE1234F</span></div>
+        </div>
+      </div>
+      <div class="connector"></div>
+
+      <div class="pnode policy"><div class="label">Policy Engine</div><div class="sub">is the user authorized? is this request allowed?</div></div>
+      <div class="connector"></div>
+
+      <div class="pnode"><div class="label">Planner / Router Agent</div><div class="sub">decides which model should handle it</div></div>
+      <div class="connector"></div>
+
+      <div class="branch-wrap">
+        <div class="branch-connectors">
+          <svg viewBox="0 0 560 26" preserveAspectRatio="none">
+            <line x1="280" y1="0" x2="280" y2="10" stroke="#272C36" stroke-dasharray="3 4"/>
+            <line x1="90" y1="10" x2="470" y2="10" stroke="#272C36" stroke-dasharray="3 4"/>
+            <line x1="90" y1="10" x2="90" y2="26" stroke="#272C36" stroke-dasharray="3 4"/>
+            <line x1="280" y1="10" x2="280" y2="26" stroke="#272C36" stroke-dasharray="3 4"/>
+            <line x1="470" y1="10" x2="470" y2="26" stroke="#272C36" stroke-dasharray="3 4"/>
+          </svg>
+        </div>
+        <div class="branch-row">
+          <div class="bnode">Local Llama</div>
+          <div class="bnode">ChatGPT</div>
+          <div class="bnode">Gemini</div>
+        </div>
+      </div>
+
+      <div class="connector"></div>
+      <div class="pnode validator"><div class="label">Response Validator</div><div class="sub">confidential leaks · policy violations · harmful output</div></div>
+      <div class="connector"></div>
+      <div class="pnode"><div class="label">User receives answer</div></div>
+    </div>
+  </div>
+</section>
+
+<section id="methods">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <div class="eyebrow">Defense layers</div>
+      <h2>Four coordinated layers, one pipeline</h2>
+    </div>
+    <div class="methods reveal">
+      <div class="method-card">
+        <div class="stamp">flagged</div>
+        <div class="num">01</div>
+        <h3>Prompt &amp; content firewall</h3>
+        <p>Filters incoming text and transcribed audio for jailbreak and injection patterns. Checks attached images and requested edits against content safety rules before anything else runs.</p>
+      </div>
+      <div class="method-card">
+        <div class="stamp">redacted</div>
+        <div class="num">02</div>
+        <h3>PII &amp; sensitive data sanitization</h3>
+        <p>Detects personal or secret information in text, transcripts, or image text via OCR, and replaces it with placeholders before the LLM ever sees it.</p>
+      </div>
+      <div class="method-card">
+        <div class="stamp">routed</div>
+        <div class="num">03</div>
+        <h3>Multi-agent orchestration</h3>
+        <p>Classifies intent and modality, performs redaction and normalization, routes to the correct model — LLM, ASR, or vision — and coordinates every safety check along the way.</p>
+      </div>
+      <div class="method-card">
+        <div class="stamp">verified</div>
+        <div class="num">04</div>
+        <h3>Output validation</h3>
+        <p>Scans every text, audio, and image response for unsafe instructions, hallucinated or toxic content, and sensitive leaks. Unsafe responses are filtered, regenerated, or rejected.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="stack">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <div class="eyebrow">Technology</div>
+      <h2>Implementation stack</h2>
+    </div>
+    <div class="reveal" style="overflow-x:auto;">
+      <table class="stack">
+        <thead><tr><th>Component</th><th>Technology</th></tr></thead>
+        <tbody>
+          <tr><td>API backend</td><td>FastAPI</td></tr>
+          <tr><td>Multi-agent orchestration</td><td>LangGraph</td></tr>
+          <tr><td>Local text LLM serving</td><td>Ollama</td></tr>
+          <tr><td>Text LLM model</td><td>Llama-3-8B</td></tr>
+          <tr><td>Embedding model (text)</td><td>Sentence-Transformers</td></tr>
+          <tr><td>Speech-to-text model</td><td>Whisper or similar ASR model</td></tr>
+          <tr><td>Text-to-speech (optional)</td><td>Any TTS model for voice replies</td></tr>
+          <tr><td>Vision / image model</td><td>CLIP-style / vision transformer + content detection API</td></tr>
+          <tr><td>Vector database</td><td>ChromaDB</td></tr>
+          <tr><td>Frontend dashboard</td><td>Streamlit</td></tr>
+          <tr><td>Security logic</td><td>Rule-based filters, semantic similarity, multimodal safety, output validation</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section id="models">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <div class="eyebrow">Models</div>
+      <h2>Six specialized models, one coherent pipeline</h2>
+      <p>No single model carries this system. Each one owns a narrow part of the pipeline.</p>
+    </div>
+    <div class="models reveal">
+      <div class="model-card"><div class="tag-role">Reasoning</div><h4>Llama-3-8B</h4><p>Core LLM — reasoning, summarization, and text generation.</p></div>
+      <div class="model-card"><div class="tag-role">Detection</div><h4>Sentence-Transformers</h4><p>Embeds prompts for injection similarity detection against known attack patterns.</p></div>
+      <div class="model-card"><div class="tag-role">Transcription</div><h4>ASR (Whisper-class)</h4><p>Converts voice input to text so the firewall and redaction pipeline apply uniformly.</p></div>
+      <div class="model-card"><div class="tag-role">Synthesis</div><h4>Text-to-speech</h4><p>Synthesizes voice replies from validated, already-safe LLM text.</p></div>
+      <div class="model-card"><div class="tag-role">Vision</div><h4>Vision / image model</h4><p>Understands images, generates descriptions, and supports allowed edits.</p></div>
+      <div class="model-card"><div class="tag-role">Safety</div><h4>Content safety models</h4><p>Detects sexual, violent, hateful, or self-harm content across text and images alike.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="references">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <div class="eyebrow">Research grounding</div>
+      <h2>Built on published threat models</h2>
+    </div>
+    <ul class="refs reveal">
+      <li><span class="idx">01</span><span>Toward Secure LLM Agents: Threat Surfaces, Attacks, Defenses, and Evaluation</span></li>
+      <li><span class="idx">02</span><span>The Emerged Security and Privacy of LLM Agents: A Survey with Case Studies</span></li>
+      <li><span class="idx">03</span><span>From Prompt Injections to Protocol Exploits: Threats in LLM-Powered AI Agents</span></li>
+    </ul>
+  </div>
+</section>
+
+<section style="border-bottom:none;">
+  <div class="wrap reveal">
+    <div class="timeline-strip">
+      <span class="big">36–50</span>
+      <span>days of development — from firewall design to output validation, across all three modalities.</span>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <p>SELF-DEFENDING CONFIDENTIAL MULTIMODAL LLM GATEWAY — ACADEMIC PROTOTYPE</p>
+</footer>
+
+<script>
+  // Terminal log ticker
+  const events = [
+    ["PASS","POST /chat · text · latency 118ms"],
+    ["BLOCK","injection pattern matched · 'ignore previous instructions'"],
+    ["REDACT","PAN masked in transcript · agent=privacy"],
+    ["PASS","POST /chat · voice → ASR → text · latency 340ms"],
+    ["BLOCK","image edit request flagged · policy=nsfw"],
+    ["REDACT","Aadhaar number masked · 12 digits"],
+    ["PASS","router → local-llama · intent=summarize"],
+    ["BLOCK","jailbreak similarity 0.94 · known pattern"],
+    ["PASS","validator cleared · no leak detected"],
+    ["REDACT","password token masked in prompt body"],
+    ["PASS","POST /chat · image · content check ok"],
+    ["BLOCK","output withheld · hallucinated policy claim"],
+  ];
+  const body = document.getElementById('logBody');
+  let i = 0;
+  function pushLine(){
+    const [status, msg] = events[i % events.length];
+    const cls = status === "PASS" ? "pass" : status === "BLOCK" ? "block" : "redact";
+    const el = document.createElement('div');
+    el.className = 'log-line ' + cls;
+    el.innerHTML = `<span class="status">[${status}]</span><span class="msg">${msg}</span>`;
+    body.appendChild(el);
+    if(body.children.length > 9){ body.removeChild(body.firstChild); }
+    i++;
+  }
+  for(let k=0;k<7;k++) pushLine();
+  setInterval(pushLine, 1400);
+
+  // Reveal on scroll
+  const io = new IntersectionObserver((entries)=>{
+    entries.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add('in'); } });
+  }, {threshold:.15});
+  document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+</script>
+
+</body>
+</html>
