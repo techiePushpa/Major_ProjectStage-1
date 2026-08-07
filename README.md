@@ -4,6 +4,12 @@
 
 ---
 
+# 🌐 Live Demo
+
+**Website:** https://major-project-stage-1-one.vercel.app
+
+---
+
 # 📖 Project Overview
 
 Large Language Models (LLMs) have become an integral part of modern AI applications, but they are vulnerable to security threats such as prompt injection, jailbreak attacks, confidential data leakage, and unsafe content generation.
@@ -121,6 +127,16 @@ User
 
 ---
 
+# 📁 Repository Structure
+
+```text
+major-project/
+│── index.html
+└── README.md
+```
+
+---
+
 # 🌍 Applications
 
 - Enterprise AI Assistants
@@ -147,3 +163,4 @@ User
 # 📌 Conclusion
 
 The **Self-Defending Confidential Multimodal LLM Gateway with Multi-Agent Orchestration** provides a secure framework for interacting with Large Language Models by combining AI security, multimodal processing, and multi-agent collaboration. It helps organizations build reliable, privacy-preserving, and enterprise-ready AI applications while protecting against modern AI security threats.
+
